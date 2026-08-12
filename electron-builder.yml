@@ -9,7 +9,7 @@ asar: false
 
 publish:
   - provider: github
-    owner: ryashpal18-cmyk
+    owner: jyashpal2017-glitch
     repo: BALAJI-ORTHO-CARE-EXE
     releaseType: release
 
