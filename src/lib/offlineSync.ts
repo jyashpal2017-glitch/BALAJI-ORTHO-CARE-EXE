@@ -493,7 +493,21 @@ export async function runSync(): Promise<{ synced: number; pending: number }> {
         synced++;
       } catch (err: any) {
         const msg = err?.message || String(err);
-        if (msg === "PENDING_PARENT_INSERT") continue;
+        if (msg === "PENDING_PARENT_INSERT") {
+          // 🚨 FIX: pehle yahan retries kabhi increment nahi hota tha — agar
+          // parent record khud permanently failed ho chuka hai (apna
+          // MAX_RETRIES cross kar chuka), to child hamesha "parent ka wait"
+          // karte hue retries:0 pe atka reh jaata, kabhi bhi autoDropStuckItems
+          // ya MAX_RETRIES check use pakad hi nahi paata — silent infinite deadlock.
+          // Ab child ka bhi retry count badhta hai, taaki agar parent sach
+          // mein kabhi nahi aayega to ye bhi eventually MAX_RETRIES cross
+          // karke skip/drop ho jaaye, hamesha ke liye "pending" na dikhe.
+          if (m.id !== undefined) {
+            const retries = (m.retries || 0) + 1;
+            await queueUpdate(m.id, { retries, lastError: "PENDING_PARENT_INSERT — parent abhi tak sync nahi hua" });
+          }
+          continue;
+        }
         cLog.error("sync", "Mutation fail — op: " + m.op + ", table: " + m.table + ", msg: " + msg);
         if (m.id !== undefined) {
           const retries = (m.retries || 0) + 1;
