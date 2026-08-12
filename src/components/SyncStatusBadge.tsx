@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CloudOff, RefreshCw, CheckCircle2 } from "lucide-react";
-import { queueGetAll, queueRemove, onQueueChange } from "@/lib/offlineDb";
+import { queueGetAll, queueRemove, onQueueChange, cacheGetRow, cacheUpsertRow } from "@/lib/offlineDb";
 import { onSyncStatus, runSync } from "@/lib/offlineSync";
 
 export function SyncStatusBadge() {
@@ -101,6 +101,22 @@ async function autoDropStuckItems() {
     for (const m of all) {
       if ((m.retries || 0) >= 5 && m.id !== undefined) {
         await queueRemove(m.id);
+        // 🚨 FIX: pehle sirf queue se item hatta tha, lekin us row ka
+        // cache mein "_pendingSync: true" flag hamesha ke liye reh jaata
+        // tha — matlab wo row disk/dashboard pe forever "pending" dikhti
+        // rehti thi, chahe queue khaali ho jaaye. Ab drop karte waqt cache
+        // row ka flag bhi clear kar dete hain, taaki dono jagah sahi state
+        // dikhe. (Note: iska matlab ye row Supabase pe abhi bhi nahi gayi —
+        // sirf hamesha retry hote rehna band ho raha hai.)
+        const rowId = (m as any).rowId || (m as any).tempId || m.payload?.id;
+        if (rowId && m.table) {
+          try {
+            const existing = await cacheGetRow(m.table, rowId);
+            if (existing && existing._pendingSync) {
+              await cacheUpsertRow(m.table, { ...existing, _pendingSync: false, _syncGaveUp: true }, "id");
+            }
+          } catch { /* silent — best effort */ }
+        }
       }
     }
   } catch { /* silent */ }
