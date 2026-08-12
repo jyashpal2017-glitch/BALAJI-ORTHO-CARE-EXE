@@ -1,0 +1,36 @@
+appId: com.balaji.ortho.connect
+productName: Balaji Ortho Care Connect
+copyright: "Balaji Ortho Care Center"
+
+directories:
+  output: release
+
+asar: false
+
+publish:
+  - provider: github
+    owner: ryashpal18-cmyk
+    repo: BALAJI-ORTHO-CARE-EXE
+    releaseType: release
+
+files:
+  - dist/**
+  - main.js
+  - preload.js
+  - logger.cjs
+  - sqlite-store.cjs
+  - package.json
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "Balaji Ortho Care Connect"
+  artifactName: "BalajiOrthoConnect-Setup-${version}.exe"
